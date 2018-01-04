@@ -24,8 +24,8 @@ import mapnik
 
 MULTIPROCESSING = False # True=multiprocessing; False=treading
 
-DEG_TO_RAD = pi/180
-RAD_TO_DEG = 180/pi
+DEG_TO_RAD = pi / 180.0
+RAD_TO_DEG = 180.0 / pi
 
 # Map defines
 TILE_SIZE = 256
@@ -36,11 +36,8 @@ BUF_SIZE = 1024
 # Default number of rendering threads to spawn, should be roughly equal to number of CPU cores available
 NUM_THREADS = 4
 
-
-def minmax (a,b,c):
-    a = max(a,b)
-    a = min(a,c)
-    return a
+def limit (a):
+    return min( max(a, -0.9999), 0.9999)
 
 class GoogleProjection:
     def __init__(self,levels=18):
@@ -50,9 +47,9 @@ class GoogleProjection:
         self.Ac = []
         c = 256
         for d in range(0,levels + 1):
-            e = c/2;
+            e = c/2.0;
             self.Bc.append(c/360.0)
-            self.Cc.append(c/(2 * pi))
+            self.Cc.append(c/(2.0 * pi))
             self.zc.append((e,e))
             self.Ac.append(c)
             c *= 2
@@ -60,15 +57,15 @@ class GoogleProjection:
     def fromLLtoPixel(self,ll,zoom):
          d = self.zc[zoom]
          e = round(d[0] + ll[0] * self.Bc[zoom])
-         f = minmax(sin(DEG_TO_RAD * ll[1]),-0.9999,0.9999)
-         g = round(d[1] + 0.5*log((1+f)/(1-f))*-self.Cc[zoom])
+         f = limit(sin(DEG_TO_RAD * ll[1]))
+         g = round(d[1] + 0.5*log((1+f)/(1.0-f))*-self.Cc[zoom])
          return (e,g)
      
     def fromPixelToLL(self,px,zoom):
          e = self.zc[zoom]
          f = (px[0] - e[0])/self.Bc[zoom]
          g = (px[1] - e[1])/-self.Cc[zoom]
-         h = RAD_TO_DEG * ( 2 * atan(exp(g)) - 0.5 * pi)
+         h = RAD_TO_DEG * ( 2.0 * atan(exp(g)) - 0.5 * pi)
          return (f,h)
 
 class MinimalProgressBar:
@@ -85,9 +82,9 @@ class MinimalProgressBar:
       dots = '.' * int(percentage * self.width)
       spaces = ' ' * (self.width - len(dots))
       delta = datetime.now()-self.startTime
-      elapsed = float(delta.microseconds + delta.seconds*1000000 + delta.days*24*60*60*1000000)/1000000
+      elapsed = (delta.microseconds + delta.seconds*1000000 + delta.days*24*60*60*1000000)/1000000.0
       eta = int(elapsed/max(percentage,0.01) - elapsed)
-      hms = "{:02}:{:02}:{:02}".format(eta/3600, (eta/60)%60, eta%60)
+      hms = "{:02}:{:02}:{:02}".format(eta//3600, (eta//60)%60, eta%60)
       sys.stdout.write("\r[{}] {:6.2%} eta {}".format(dots + spaces, percentage, hms))
       sys.stdout.flush()
 
@@ -255,8 +252,6 @@ class RenderThread:
 
     def render_tile(self, z, scale, p0, p1, metawidth, metaheight, debug):
         # Calculate pixel positions of bottom-left & top-right
-#        p0 = (x * 256, (y + 1) * 256)
-#        p1 = ((x + 1) * 256, y * 256)
 
         # Convert to LatLong (EPSG:4326)
         l0 = self.tileproj.fromPixelToLL(p0, z);
