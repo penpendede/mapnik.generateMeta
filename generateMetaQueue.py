@@ -448,7 +448,7 @@ def render_tiles(bbox, zooms, mapfile, writer, lock, metasize, num_threads=NUM_T
 
 if __name__ == "__main__":
   
-    mapfile = "mycyclemap.xml"
+    mapfile = "mapnik.xml"
 
     parser = argparse.ArgumentParser(description='TileGenerator by Henry Thasler')
     apg_input = parser.add_argument_group('Input')
