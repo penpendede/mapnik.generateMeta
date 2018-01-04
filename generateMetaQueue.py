@@ -30,9 +30,6 @@ RAD_TO_DEG = 180/pi
 # Map defines
 TILE_SIZE = 256
 
-# Size of one metatile edge (square). The unit is tiles. 8 means one metatile contains up to 64 regular tiles. 8x8=64
-META_SIZE = 16
-
 # amount of pixels the metatile is increased on each edge
 BUF_SIZE = 1024
 
@@ -319,7 +316,7 @@ class RenderThread:
 
 
 
-def render_tiles(bbox, zooms, mapfile, writer, lock, num_threads=NUM_THREADS, scale=1, debug=0):
+def render_tiles(bbox, zooms, mapfile, writer, lock, metasize, num_threads=NUM_THREADS, scale=1, debug=0):
   
     # setup queue to be used as a transfer pipeline to the render processes
     renderQueue = multiprocessing.JoinableQueue(32)
@@ -369,17 +366,17 @@ def render_tiles(bbox, zooms, mapfile, writer, lock, num_threads=NUM_THREADS, sc
       tileData['sum'] += tileData[z]['sum']
 
       # determine optimal metatile size
-      if tileData[z]['sum'] <= (META_SIZE*META_SIZE):
+      if tileData[z]['sum'] <= (metasize*metasize):
         # whole map at this zoom level fits into one metatile (does not need to be a square) 
         metaData[z]['width'] = tileData[z]['cols']
         metaData[z]['height'] = tileData[z]['rows']
       else:
         if tileData[z]['cols'] <= tileData[z]['rows']:
-          metaData[z]['width'] = min(META_SIZE, tileData[z]['cols'])
-          metaData[z]['height'] = int(floor(META_SIZE*META_SIZE/metaData[z]['width']))
+          metaData[z]['width'] = min(metasize, tileData[z]['cols'])
+          metaData[z]['height'] = int(floor(metasize*metasize/metaData[z]['width']))
         else:
-          metaData[z]['height'] = min(META_SIZE, tileData[z]['rows'])
-          metaData[z]['width'] = int(floor(META_SIZE*META_SIZE/metaData[z]['height']))
+          metaData[z]['height'] = min(metasize, tileData[z]['rows'])
+          metaData[z]['width'] = int(floor(metasize*metasize/metaData[z]['height']))
 
       # amount of metatiles for this zoom level   
       metaData[z]['sum'] = int(ceil(float(tileData[z]['sum']) / float(metaData[z]['width']*metaData[z]['height'])))
@@ -464,6 +461,7 @@ if __name__ == "__main__":
     apg_output.add_argument("--sqlitetype", help="type of sqlite-database", default="osmand")
   
     apg_other = parser.add_argument_group('Settings')
+    apg_other.add_argument('--metasize', type=int, help='metatile size (default: 16)', default=16)
     apg_other.add_argument('--scale', type=float, help="scale_factor=2", default=1.0)
     apg_other.add_argument('--mapfile', help='style file for mapnik (default: {0})'.format(mapfile), default=mapfile)
     apg_other.add_argument('--threads', type=int, metavar='N', help='number of threads (default: 2)', default=2)
@@ -479,11 +477,12 @@ if __name__ == "__main__":
     mapfile = options.mapfile
         
     print ("Bounding Box: %s" % (options.bbox,) )
+    print ("Metasize: {}".format(options.metasize) )
     print ("Zoom: {}-{}".format(options.zooms[0], options.zooms[1]) )
     print ("Scale: {}\n".format(options.scale) )
     
     # setup queue to be used as a transfer pipeline from the render processes to the writer
-    writerQueue = multiprocessing.JoinableQueue(META_SIZE*META_SIZE)
+    writerQueue = multiprocessing.JoinableQueue(options.metasize*options.metasize)
     
     # setup a lock for parts that only one process can execute (e.g. access the same file, print to screen)
     if MULTIPROCESSING:
@@ -498,7 +497,7 @@ if __name__ == "__main__":
       writer_thread = threading.Thread(target=writer.loop)        # threading
     writer_thread.start()
     
-    render_tiles(options.bbox, options.zooms, mapfile, writerQueue, lock, num_threads=options.threads, scale=options.scale, debug=options.debug)
+    render_tiles(options.bbox, options.zooms, mapfile, writerQueue, lock, options.metasize, num_threads=options.threads, scale=options.scale, debug=options.debug)
     
     writerQueue.put(None)
     # wait for pending rendering jobs to complete
